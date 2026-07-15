@@ -1,0 +1,87 @@
+/* 人员信息管理系统 - 自定义样式 */
+
+/* 全局 */
+body {
+    font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+    background-color: #f5f6fa;
+}
+
+/* 登录页 */
+.login-page {
+    min-height: 100vh;
+}
+
+/* 搜索栏 */
+.search-bar-gradient {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 40px 0;
+}
+
+/* 搜索输入框 */
+.search-input {
+    border-radius: 8px 0 0 8px !important;
+    border: 1px solid #ddd;
+    padding: 10px 16px;
+    font-size: 16px;
+}
+
+.search-btn {
+    border-radius: 0 8px 8px 0 !important;
+    padding: 10px 24px;
+    font-weight: 600;
+}
+
+/* 侧边栏 */
+#sidebar .nav-link {
+    color: rgba(255, 255, 255, 0.7) !important;
+    border-radius: 8px;
+    margin: 2px 0;
+    padding: 10px 16px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+#sidebar .nav-link:hover {
+    color: white !important;
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+#sidebar .nav-link.active {
+    color: white !important;
+    background-color: #667eea !important;
+}
+
+/* 卡片 */
+.card {
+    border-radius: 12px;
+    border: 1px solid #e8e8e8;
+}
+
+/* 表格 */
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner table {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* 上传区域 */
+#import-upload:hover {
+    border-color: #764ba2 !important;
+    background-color: #f0edff !important;
+}
+
+/* 导航栏 */
+.navbar {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    #sidebar {
+        width: 60px !important;
+        padding: 6px 2px !important;
+    }
+    #sidebar .nav-link span,
+    #sidebar h5 {
+        display: none;
+    }
+}
