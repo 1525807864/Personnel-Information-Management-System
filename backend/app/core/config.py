@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "人员信息管理系统"
     DEBUG: bool = True
     FASTAPI_HOST: str = "0.0.0.0"
-    FASTAPI_PORT: int = 8000
+    FASTAPI_PORT: int = 8002
 
     # ─── JWT 配置 ───
     SECRET_KEY: str

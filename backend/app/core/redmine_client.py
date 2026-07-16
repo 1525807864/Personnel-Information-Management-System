@@ -17,7 +17,7 @@ class RedmineClient:
         self.headers = {'X-Redmine-API-Key': api_key,'Content-Type': 'application/json'}
     async def get_user(self,user_id:int)->Dict[str,Any]:
         """获取单个用户信息"""
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(proxy=None) as client:
             response = await client.get(f"{self.base_url}/users/{user_id}.json", headers=self.headers)
             response.raise_for_status()
             return response.json()
@@ -41,7 +41,7 @@ class RedmineClient:
                     params[f'cf_{key[3:]}'] = value
                 else:
                     params[key] = value
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(proxy=None) as client:
             response = await client.get(f"{self.base_url}/users.json", params=params, headers=self.headers)
             response.raise_for_status()
             return response.json()
@@ -59,7 +59,7 @@ class RedmineClient:
                 'password':user_data['password'],
                 'firstname':user_data.get('firstname'),
                 'lastname':user_data.get('lastname'),
-                'email':user_data.get('email'),
+                'mail':user_data.get('email'),
                 'status':user_data.get('status',1),
             }
         }
@@ -74,7 +74,7 @@ class RedmineClient:
         if custom_fields:
             payload['user']['custom_fields'] = custom_fields
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(proxy=None) as client:
             response = await client.post(f"{self.base_url}/users.json", json=payload, headers=self.headers)
             response.raise_for_status()
             return response.json()
@@ -100,7 +100,7 @@ class RedmineClient:
         if custom_fields:
             payload['user']['custom_fields'] = custom_fields
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(proxy=None) as client:
             response = await client.put(
                 f"{self.base_url}/users/{user_id}.json",
                 headers=self.headers,
@@ -111,7 +111,7 @@ class RedmineClient:
 
     async def delete_user(self, user_id: int):
         """删除用户"""
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(proxy=None) as client:
             response = await client.delete(
                 f"{self.base_url}/users/{user_id}.json",
                 headers=self.headers
@@ -132,7 +132,7 @@ class RedmineClient:
             "Authorization": f"Basic {credentials}",
             "Content-Type": "application/json",
         }
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(proxy=None) as client:
             t0 = time.perf_counter()
             try:
                 response = await client.get(
@@ -156,7 +156,7 @@ class RedmineClient:
         :param user_id:
         :return: 用户完整的字典数据
         """
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(proxy=None) as client:
             response = await client.get(
                 f"{self.base_url}/users/{user_id}.json",
                 headers=self.headers,
@@ -170,8 +170,115 @@ class RedmineClient:
     通过redmine用户的status来判断啊
     1=活跃 2=已注册 3=已锁定 5=待激活
     """
+    # =========================================================================
+    # Issue（问题）CRUD — 人员数据以 Issue 形式存储在项目内
+    # =========================================================================
+
+    async def create_issue(self, issue_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        创建 Issue（两步：先创建基础信息，再更新设置自定义字段）
+
+        部分 Redmine 版本不允许在 POST /issues.json 中直接带 custom_fields，
+        但允许在 PUT /issues/:id.json 中设置。因此这里采用两步操作。
+
+        :param issue_data: flat dict，必须含 subject/project_id，
+                          自定义字段以 cf_X 的 key 形式传入
+        :return: Redmine API 响应（含自定义字段的完整 Issue）
+        """
+        # 分离自定义字段和基础字段
+        custom_fields = []
+        for key, value in issue_data.items():
+            if key.startswith("cf_"):
+                custom_fields.append({'id': int(key[3:]), 'value': value})
+
+        # 步骤1：创建 Issue（不带自定义字段）
+        payload = {'issue': {
+            'project_id': issue_data['project_id'],
+            'subject': issue_data['subject'],
+            'tracker_id': issue_data.get('tracker_id', 1),
+            'status_id': issue_data.get('status_id', 1),
+        }}
+        async with httpx.AsyncClient(proxy=None) as client:
+            response = await client.post(f"{self.base_url}/issues.json", json=payload, headers=self.headers)
+            response.raise_for_status()
+            created = response.json()
+            issue_id = created['issue']['id']
+
+            # 步骤2：更新 Issue 设置自定义字段
+            if custom_fields:
+                update_payload = {'issue': {'custom_fields': custom_fields}}
+                update_resp = await client.put(
+                    f"{self.base_url}/issues/{issue_id}.json",
+                    json=update_payload, headers=self.headers,
+                )
+                update_resp.raise_for_status()
+                logger.debug("Issue #%s 自定义字段更新成功 | fields=%s", issue_id, len(custom_fields))
+
+                # 重新获取完整 Issue（含自定义字段）
+                response = await client.get(
+                    f"{self.base_url}/issues/{issue_id}.json", headers=self.headers,
+                )
+                response.raise_for_status()
+                return response.json()
+
+        return created
+
+    async def get_issues(self, project_id: int, page: int = 1, limit: int = 25,
+                         filters: Optional[Dict] = None) -> Dict[str, Any]:
+        """获取项目下的 Issue 列表（分页+过滤）"""
+        params = {'project_id': project_id, 'page': page, 'limit': limit, 'status_id': 'open'}
+        if filters:
+            for key, value in filters.items():
+                if key.startswith("cf_"):
+                    params[f'cf_{key[3:]}'] = value
+                else:
+                    params[key] = value
+        async with httpx.AsyncClient(proxy=None) as client:
+            response = await client.get(f"{self.base_url}/issues.json", params=params, headers=self.headers)
+            response.raise_for_status()
+            return response.json()
+
+    async def get_issue(self, issue_id: int) -> Dict[str, Any]:
+        """获取单个 Issue 详情"""
+        async with httpx.AsyncClient(proxy=None) as client:
+            response = await client.get(f"{self.base_url}/issues/{issue_id}.json", headers=self.headers)
+            response.raise_for_status()
+            return response.json()
+
+    async def update_issue(self, issue_id: int, issue_data: Dict[str, Any]) -> Dict[str, Any]:
+        """更新 Issue（Redmine PUT 返回 204 No Content 无 body）"""
+        payload = {'issue': {}}
+        updatable = ['subject', 'status_id', 'tracker_id', 'project_id']
+        for field in updatable:
+            if field in issue_data:
+                payload['issue'][field] = issue_data[field]
+        custom_fields = []
+        for key, value in issue_data.items():
+            if key.startswith('cf_'):
+                custom_fields.append({'id': int(key[3:]), 'value': value})
+        if custom_fields:
+            payload['issue']['custom_fields'] = custom_fields
+        async with httpx.AsyncClient(proxy=None) as client:
+            response = await client.put(
+                f"{self.base_url}/issues/{issue_id}.json",
+                headers=self.headers, json=payload,
+            )
+            response.raise_for_status()
+            # Redmine 返回 204 无 body，重新 GET 获取最新数据
+            if response.status_code == 204:
+                get_resp = await client.get(
+                    f"{self.base_url}/issues/{issue_id}.json", headers=self.headers,
+                )
+                get_resp.raise_for_status()
+                return get_resp.json()
+            return response.json()
+
+    # =========================================================================
+    # 以下为认证用的 User 方法，保留不动
+    # =========================================================================
+
     async def check_account_locked(self,login:str)->bool:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(proxy=None) as client:
             response = await client.get(
                 f"{self.base_url}/users.json",
                 headers=self.headers,

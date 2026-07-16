@@ -2,8 +2,14 @@
 import logging
 import logging.config
 import os
+import sys
 import time
 from contextlib import asynccontextmanager
+
+# 确保项目根目录在 sys.path 中（支持 python backend/main.py 和 python -m backend.main 两种启动方式）
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
 
 import uvicorn
 from fastapi import FastAPI, Request
@@ -11,6 +17,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.core.config import settings
 from backend.app.api.v1 import auth as auth_router
+from backend.app.api.v1 import personnel as personnel_router
+from backend.app.core.redis_client import init_redis, close_redis
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -147,12 +155,15 @@ class RequestLoggingMiddleware:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await init_redis()
     logger.info("=" * 50)
     logger.info("人员信息管理系统 API 启动中...")
     logger.info("Redmine 地址: %s", settings.REDMINE_URL)
     logger.info("Redmine 项目 ID: %s", settings.REDMINE_PROJECT_ID)
+    logger.info("Redis 状态: %s", "已启用" if settings.REDIS_ENABLE else "未启用")
     logger.info("=" * 50)
     yield
+    await close_redis()
     logger.info("人员信息管理系统 API 正在关闭...")
 
 
@@ -183,6 +194,7 @@ app.add_middleware(
 
 # 注册路由
 app.include_router(auth_router.router)
+app.include_router(personnel_router.router)
 
 
 @app.get("/")

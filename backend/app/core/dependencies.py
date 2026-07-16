@@ -2,7 +2,7 @@ from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-from backend.app.core.security import decode_access_token
+from backend.app.core.security import decode_access_token, is_token_blacklisted
 from backend.app.core.redmine_client import RedmineClient
 from backend.app.core.config import settings
 
@@ -40,6 +40,13 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"code": 401, "message": "Token 无效或已过期，请重新登录", "data": None},
+        )
+
+    jti = payload.get("jti")
+    if jti and await is_token_blacklisted(jti):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": 401, "message": "Token 已注销，请重新登录", "data": None},
         )
 
     return {

@@ -99,18 +99,17 @@ def handle_login(n_clicks, username, password):
     if not n_clicks:
         return dash.no_update, dash.no_update,dash.no_update,"",False
     if not username or not password:
-        return None,None,dash.no_update,"请输入用户名和密码",False
+        return dash.no_update, dash.no_update, dash.no_update, "请输入用户名和密码", False
     try:
-        result = api_client.post("/api/v1/auth/login",{"username":username,"password":password},)
+        result = api_client.post("/api/v1/auth/login", {"username": username, "password": password})
     except Exception as e:
-        return None,None,dash.no_update,f"登录失败，网络异常，请稍后再试",dash.no_update
+        return dash.no_update, dash.no_update, dash.no_update, f"登录失败，网络异常，请稍后再试", False
     if result.get("code") == 200:
         data = result["data"]
         token = data["token"]
         user_json = json.dumps({
-            "username":data["username"],
-            "role":data["role"],
-
-        },ensure_ascii=False)
+            "username": data["username"],
+            "role": data["role"],
+        }, ensure_ascii=False)
         return token, user_json, "/dashboard", "", False
-    return None,None,dash.no_update,result.get("message","登录失败"),False
+    return dash.no_update, dash.no_update, dash.no_update, result.get("message", "登录失败"), False

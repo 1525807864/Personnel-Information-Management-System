@@ -1,2 +1,2 @@
-# Personnel-Information-Management-System
-This is a Personnel Information Management System,this system can help people to manager their project.
+# 人员信息后台管理程序
+

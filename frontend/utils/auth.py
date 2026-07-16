@@ -17,7 +17,7 @@ def save_token(token:str)->str:
     _cache_token = token
     return token
 
-def get_token()->None:
+def get_token() -> Optional[str]:
     return _cache_token
 def save_user_info(username: str, role: str) -> str:
     global _cache_user

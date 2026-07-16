@@ -1,9 +1,17 @@
 """人员信息管理系统-前端入口"""
 
 import logging
+import os
+import sys
 import dash
 from dash import html, dcc, Input, Output, State
 import dash_bootstrap_components as dbc
+# 确保项目根目录在 sys.path 中（支持 python backend/main.py 和 python -m backend.main 两种启动方式）
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
+
+
 
 #初始化Dash应用
 app = dash.Dash(
@@ -17,6 +25,9 @@ app = dash.Dash(
 from frontend.ui.dashboard import layout as dashboard_layout
 from frontend.ui.login import layout as login_layout
 from frontend.ui.personnel_list import layout as personnel_list_layout
+from frontend.ui.search import layout as search_layout
+from frontend.ui.import_page import layout as import_layout
+from frontend.ui.personnel_form import layout as personnel_form_layout
 #全局store
 # ─── 全局 Stores ──────────────────────────────────────────────────────────
 app.layout = html.Div([
@@ -27,7 +38,13 @@ app.layout = html.Div([
     html.Div(id="page-content"),
 ])
 PUBLIC_ROUTES = {"/","/login"}
-PROTECTED_ROUTES = {"/dashboard":dashboard_layout,"/personnel":personnel_list_layout}
+PROTECTED_ROUTES = {
+    "/dashboard": dashboard_layout,
+    "/personnel": personnel_list_layout,
+    "/search": search_layout,
+    "/import": import_layout,
+    "/add": personnel_form_layout,
+}
 #路由回调（带认证守卫）
 @app.callback(
     Output("page-content","children"),
@@ -52,6 +69,20 @@ def render_page(pathname: str, token: str):
 
     # 未知路径 → 默认跳转仪表盘
     return dashboard_layout(), dash.no_update
+
+# 同步 auth Store 到内存缓存（其他模块的 api_client 依赖此缓存获取 token）
+@app.callback(
+    Output("auth-token", "data", allow_duplicate=True),
+    Output("auth-user", "data", allow_duplicate=True),
+    Input("auth-token", "data"),
+    Input("auth-user", "data"),
+    prevent_initial_call='initial_duplicate',
+)
+def sync_auth_cache(token_data, user_data):
+    from frontend.utils.auth import set_cache_from_store
+    set_cache_from_store(token_data, user_data)
+    return dash.no_update, dash.no_update
+
 
 #退出登录回调
 @app.callback(

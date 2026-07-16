@@ -21,26 +21,27 @@ class AuthService:
         :param request:
         :return:
         """
-        logger.debug("正在向Redmine验证凭证|login=%s",request.username)
+        logger.info("正在向Redmine验证凭证|login=%s",request.username)
         user_info = await self.redmine.verify_user_credentials(login=request.username,password=request.password)
         if user_info is None:
-            logger.info("Redmin 凭证验证失败|login=%s",request.username)
-            return False,f"用户名或密码错误",None
+            logger.warning("Redmine 凭证验证失败|login=%s",request.username)
+            return False,"用户名或密码错误",None
         user = user_info.get('user',user_info)
         status = user.get('status',1)
-        logger.info(f"目前的账号状态是:{status}")
+        logger.info("账号状态: %s | login=%s", status, request.username)
         if status == 3:
-            logger.info("账号已被锁定 | login=%s | status=%s",
+            logger.warning("账号已被锁定 | login=%s | status=%s",
                            request.username, status)
             return False,"账号被锁定，请联系管理员",None
         if status not in (1,2):
-            logger.info(f"目前的账号状态是:{status}")
+            logger.warning("账号状态异常 | login=%s | status=%s",
+                           request.username, status)
             return False,"账号状态异常，登录失败",None
         user_id = user.get('id')
         full_user = await self.redmine.get_user_with_api_key(user_id)
         if full_user:
             custom_fields = full_user.get('user',{}).get('custom_fields',[])
-            logger.info("获取到用户完整信息 | user_id=%s |custom_fields_count = %s",user_id, len(custom_fields))
+            logger.info("获取到用户完整信息 | user_id=%s | custom_fields_count=%s",user_id, len(custom_fields))
             user = full_user.get('user',full_user)
         role = "admin" if user.get('admin',False) else "user"
         return True,"登录成功",{

@@ -1,7 +1,7 @@
 """API调用封装"""
 import requests
 from typing import Optional,Any
-API_BASE = "http://localhost:8000"
+API_BASE = "http://localhost:8002"
 
 def set_api_base(url: str) -> None:
     global API_BASE
