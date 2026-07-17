@@ -57,12 +57,17 @@ def layout(**kwargs):
                                     className="mb-3",
                                 ),
                                 html.Div(id="login-error", style={"minHeight": "24px", "color": "#dc3545", "fontSize": "14px"}),
-                                dbc.Button(
-                                    "登 录",
-                                    id="login-btn",
-                                    color="primary",
-                                    className="w-100",
-                                    style={"borderRadius": "8px", "padding": "12px", "fontWeight": "600"},
+                                dbc.Spinner(
+                                    dbc.Button(
+                                        "登 录",
+                                        id="login-btn",
+                                        color="primary",
+                                        className="w-100",
+                                        style={"borderRadius": "8px", "padding": "12px", "fontWeight": "600"},
+                                    ),
+                                    color="#FF364B",
+                                    size="sm",
+                                    spinner_class_name="me-1",
                                 ),
                             ],
                             style={"padding": "20px 30px 30px"},

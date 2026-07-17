@@ -27,12 +27,12 @@ class Settings(BaseSettings):
 
     # ─── Redis 配置 ───
     REDIS_ENABLE: bool = False
-    REDIS_HOST: str = "localhost"
+    REDIS_HOST: str = "127.0.0.1"
     REDIS_PORT: int = 6379
     REDIS_PASSWORD: Optional[str] = None
-
+    REDIS_MAXSIZE: int = 1024
     # ─── CORS 配置 ───
-    CORS_ALLOWED_ORIGINS: str = "http://localhost:8070"
+    CORS_ALLOWED_ORIGINS: str = "http://127.0.0.1:8070"
     # ─── 日志配置 ───
     LOG_LEVEL: str = "INFO"  # DEBUG / INFO / WARNING / ERROR
     LOG_DIR: str = "logs"  # 日志文件目录（相对于项目根目录）

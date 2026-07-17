@@ -15,9 +15,10 @@ class RedmineClient:
         self.base_url = base_url
         self.api_key = api_key
         self.headers = {'X-Redmine-API-Key': api_key,'Content-Type': 'application/json'}
+        self._transport = httpx.AsyncHTTPTransport(retries=0)
     async def get_user(self,user_id:int)->Dict[str,Any]:
         """获取单个用户信息"""
-        async with httpx.AsyncClient(proxy=None) as client:
+        async with httpx.AsyncClient(transport=self._transport, proxy=None) as client:
             response = await client.get(f"{self.base_url}/users/{user_id}.json", headers=self.headers)
             response.raise_for_status()
             return response.json()
@@ -41,7 +42,7 @@ class RedmineClient:
                     params[f'cf_{key[3:]}'] = value
                 else:
                     params[key] = value
-        async with httpx.AsyncClient(proxy=None) as client:
+        async with httpx.AsyncClient(transport=self._transport, proxy=None) as client:
             response = await client.get(f"{self.base_url}/users.json", params=params, headers=self.headers)
             response.raise_for_status()
             return response.json()
@@ -74,7 +75,7 @@ class RedmineClient:
         if custom_fields:
             payload['user']['custom_fields'] = custom_fields
 
-        async with httpx.AsyncClient(proxy=None) as client:
+        async with httpx.AsyncClient(transport=self._transport, proxy=None) as client:
             response = await client.post(f"{self.base_url}/users.json", json=payload, headers=self.headers)
             response.raise_for_status()
             return response.json()
@@ -100,7 +101,7 @@ class RedmineClient:
         if custom_fields:
             payload['user']['custom_fields'] = custom_fields
 
-        async with httpx.AsyncClient(proxy=None) as client:
+        async with httpx.AsyncClient(transport=self._transport, proxy=None) as client:
             response = await client.put(
                 f"{self.base_url}/users/{user_id}.json",
                 headers=self.headers,
@@ -111,7 +112,7 @@ class RedmineClient:
 
     async def delete_user(self, user_id: int):
         """删除用户"""
-        async with httpx.AsyncClient(proxy=None) as client:
+        async with httpx.AsyncClient(transport=self._transport, proxy=None) as client:
             response = await client.delete(
                 f"{self.base_url}/users/{user_id}.json",
                 headers=self.headers
@@ -132,7 +133,7 @@ class RedmineClient:
             "Authorization": f"Basic {credentials}",
             "Content-Type": "application/json",
         }
-        async with httpx.AsyncClient(proxy=None) as client:
+        async with httpx.AsyncClient(transport=self._transport, proxy=None) as client:
             t0 = time.perf_counter()
             try:
                 response = await client.get(
@@ -156,7 +157,7 @@ class RedmineClient:
         :param user_id:
         :return: 用户完整的字典数据
         """
-        async with httpx.AsyncClient(proxy=None) as client:
+        async with httpx.AsyncClient(transport=self._transport, proxy=None) as client:
             response = await client.get(
                 f"{self.base_url}/users/{user_id}.json",
                 headers=self.headers,
@@ -198,7 +199,7 @@ class RedmineClient:
             'tracker_id': issue_data.get('tracker_id', 1),
             'status_id': issue_data.get('status_id', 1),
         }}
-        async with httpx.AsyncClient(proxy=None) as client:
+        async with httpx.AsyncClient(transport=self._transport, proxy=None) as client:
             response = await client.post(f"{self.base_url}/issues.json", json=payload, headers=self.headers)
             response.raise_for_status()
             created = response.json()
@@ -233,14 +234,14 @@ class RedmineClient:
                     params[f'cf_{key[3:]}'] = value
                 else:
                     params[key] = value
-        async with httpx.AsyncClient(proxy=None) as client:
+        async with httpx.AsyncClient(transport=self._transport, proxy=None) as client:
             response = await client.get(f"{self.base_url}/issues.json", params=params, headers=self.headers)
             response.raise_for_status()
             return response.json()
 
     async def get_issue(self, issue_id: int) -> Dict[str, Any]:
         """获取单个 Issue 详情"""
-        async with httpx.AsyncClient(proxy=None) as client:
+        async with httpx.AsyncClient(transport=self._transport, proxy=None) as client:
             response = await client.get(f"{self.base_url}/issues/{issue_id}.json", headers=self.headers)
             response.raise_for_status()
             return response.json()
@@ -258,7 +259,7 @@ class RedmineClient:
                 custom_fields.append({'id': int(key[3:]), 'value': value})
         if custom_fields:
             payload['issue']['custom_fields'] = custom_fields
-        async with httpx.AsyncClient(proxy=None) as client:
+        async with httpx.AsyncClient(transport=self._transport, proxy=None) as client:
             response = await client.put(
                 f"{self.base_url}/issues/{issue_id}.json",
                 headers=self.headers, json=payload,
@@ -278,7 +279,7 @@ class RedmineClient:
     # =========================================================================
 
     async def check_account_locked(self,login:str)->bool:
-        async with httpx.AsyncClient(proxy=None) as client:
+        async with httpx.AsyncClient(transport=self._transport, proxy=None) as client:
             response = await client.get(
                 f"{self.base_url}/users.json",
                 headers=self.headers,
