@@ -16,19 +16,20 @@
   6. 汇总统计结果并返回 ImportResultData
 """
 import io
-import logging
 from typing import Dict, List, Tuple
 
 import pandas as pd
 from pydantic import ValidationError
 
-from backend.app.core.config import settings
-from backend.app.core.redmine_client import RedmineClient
-from backend.app.schemas.personnel import PersonnelCreate
-from backend.app.schemas.import_schemas import ImportErrorDetail, ImportResultData
-from backend.app.utils.exceptions import FileImportException
+from ..core.config import settings
+from ..core.redmine_client import RedmineClient
+from ..schemas.personnel import PersonnelCreate
+from ..schemas.import_schemas import ImportErrorDetail, ImportResultData
+from ..utils.exceptions import FileImportException
+from ..utils.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
+
 
 # ---------------------------------------------------------------------------
 # 中文列名 → 英文字段名 映射表
@@ -451,62 +452,44 @@ class ImportService:
     # ------------------------------------------------------------------
 
     def _build_create_payload(self, row_data: dict) -> dict:
-        """
-        将校验通过的行数据构建为 Redmine create_issue 所需的 payload
+        """将校验通过的行数据构建为 Redmine create_issue 所需的 payload"""
+        from ..models.custom_field import PersonnelFieldMapping
 
-        参考 PersonnelService._build_create_payload() 的字段映射关系：
-          cf_1  → employee_id     cf_7  → position
-          cf_2  → name            cf_8  → hire_date（入职日期）
-          cf_3  → gender          cf_11 → email
-          cf_4  → age             cf_9  → 创建时间（新记录留空）
-          cf_5  → phone           cf_10 → 更新时间（新记录留空）
-          cf_6  → department
-        """
-        emp_id = str(row_data.get("employee_id", "")).strip()
-        name = str(row_data.get("name", "")).strip()
         hire_date = row_data.get("hire_date")
-        hire_date_str = str(hire_date) if hire_date else ""
-
-        return {
-            "subject": f"{emp_id} - {name}",
-            "project_id": settings.REDMINE_PROJECT_ID,
-            "tracker_id": 1,
-            "status_id": 1,
-            "cf_1": emp_id,
-            "cf_2": name,
-            "cf_3": str(row_data.get("gender", "")).strip(),
-            "cf_4": str(row_data.get("age", "")).strip(),
-            "cf_5": str(row_data.get("phone", "")).strip(),
-            "cf_6": str(row_data.get("department", "")).strip(),
-            "cf_7": str(row_data.get("position", "")).strip(),
-            "cf_8": hire_date_str,
-            "cf_11": str(row_data.get("email", "")).strip(),
-        }
+        return PersonnelFieldMapping.build_payload(
+            {
+                "employee_id": str(row_data.get("employee_id", "")).strip(),
+                "name": str(row_data.get("name", "")).strip(),
+                "gender": str(row_data.get("gender", "")).strip(),
+                "age": str(row_data.get("age", "")).strip(),
+                "phone": str(row_data.get("phone", "")).strip(),
+                "email": str(row_data.get("email", "")).strip(),
+                "department": str(row_data.get("department", "")).strip(),
+                "position": str(row_data.get("position", "")).strip(),
+                "start_datetime": str(hire_date) if hire_date else "",
+            },
+            project_id=settings.REDMINE_PROJECT_ID,
+            include_meta=True,
+        )
 
     def _build_update_payload(self, row_data: dict) -> dict:
-        """
-        构建 Redmine update_issue 所需的 payload
+        """构建 Redmine update_issue 所需的 payload"""
+        from ..models.custom_field import PersonnelFieldMapping
 
-        与 create 不同，update 不需要 project_id 和 tracker_id（这些属于 Issue 的不可变属性）。
-        RedmineClient.update_issue 会自动将 subject 和 cf_* 字段组装到 issue payload 中。
-        """
-        emp_id = str(row_data.get("employee_id", "")).strip()
-        name = str(row_data.get("name", "")).strip()
         hire_date = row_data.get("hire_date")
-        hire_date_str = str(hire_date) if hire_date else ""
-
-        return {
-            "subject": f"{emp_id} - {name}",
-            "cf_1": emp_id,
-            "cf_2": name,
-            "cf_3": str(row_data.get("gender", "")).strip(),
-            "cf_4": str(row_data.get("age", "")).strip(),
-            "cf_5": str(row_data.get("phone", "")).strip(),
-            "cf_6": str(row_data.get("department", "")).strip(),
-            "cf_7": str(row_data.get("position", "")).strip(),
-            "cf_8": hire_date_str,
-            "cf_11": str(row_data.get("email", "")).strip(),
-        }
+        return PersonnelFieldMapping.build_payload(
+            {
+                "employee_id": str(row_data.get("employee_id", "")).strip(),
+                "name": str(row_data.get("name", "")).strip(),
+                "gender": str(row_data.get("gender", "")).strip(),
+                "age": str(row_data.get("age", "")).strip(),
+                "phone": str(row_data.get("phone", "")).strip(),
+                "email": str(row_data.get("email", "")).strip(),
+                "department": str(row_data.get("department", "")).strip(),
+                "position": str(row_data.get("position", "")).strip(),
+                "start_datetime": str(hire_date) if hire_date else "",
+            },
+        )
 
     # ------------------------------------------------------------------
     # 辅助方法：组装结果对象

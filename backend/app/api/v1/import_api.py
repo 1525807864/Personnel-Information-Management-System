@@ -9,20 +9,21 @@
   POST /api/v1/import/export-errors — 导出错误数据行（返回 CSV 文件下载）
 """
 import io
-import logging
 from typing import List
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 
-from backend.app.core.dependencies import get_current_user, get_redmine_client
-from backend.app.core.redmine_client import RedmineClient
-from backend.app.schemas.common import ApiResponse
-from backend.app.schemas.import_schemas import ImportResultData
-from backend.app.services.import_service import ImportService
-from backend.app.utils.exceptions import FileImportException
+from ...core.dependencies import get_current_user, get_redmine_client
+from ...core.redmine_client import RedmineClient
+from ...schemas.common import ApiResponse
+from ...schemas.import_schemas import ImportResultData
+from ...services.import_service import ImportService
+from ...utils.exceptions import FileImportException
+from ...utils.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
+
 
 # 创建路由实例，prefix 直接定义在这里（与 personnel.py 保持一致的模式）
 router = APIRouter(prefix="/api/v1/import", tags=["数据导入"])
