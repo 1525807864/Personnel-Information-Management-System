@@ -23,16 +23,18 @@ class RedmineUser(BaseModel):
     def from_redmine_api(cls,data:Dict[str,Any])->'RedmineUser':
         """
         从redmine API响应创建用户对象
-        :param api_response:
+        :param data: Redmine API 返回的原始 JSON（可含 "user" 包裹层）
         :return:
         """
         user_data = data.get("user",data)
         cf_map = {}
         for cf in user_data.get("custom_fields",[]):
-            if cf.get("firstname"):
-                cf_map[cf["firstname"]] = cf.get("value")
-        user_data["custom_fields"] = cf_map
-        return cls(**user_data)
+            cf_name = cf.get("name") or cf.get("firstname")
+            if cf_name:
+                cf_map[cf_name] = cf.get("value")
+        parsed = {k: v for k, v in user_data.items() if k != "custom_fields"}
+        parsed["custom_fields"] = cf_map
+        return cls(**parsed)
 
     def to_dict(self)->Dict[str,Any]:
         """
