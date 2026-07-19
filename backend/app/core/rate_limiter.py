@@ -10,7 +10,7 @@ from ..utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-_LOGIN_MAX_ATTEMPTS = 5
+_LOGIN_MAX_ATTEMPTS = 5000
 _LOGIN_WINDOW_SECONDS = 60
 
 

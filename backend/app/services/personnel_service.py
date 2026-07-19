@@ -6,6 +6,7 @@ from typing import Optional, List, Dict, Any
 
 from ..core.redmine_client import RedmineClient
 from ..core.config import settings
+from ..core import redis_client
 from ..models.personnel import Personnel
 from ..schemas.personnel import (
     PersonnelCreate,
@@ -29,24 +30,33 @@ class PersonnelService:
     # =========================================================================
 
     async def create_personnel(self, data: PersonnelCreate) -> PersonnelResponse:
-        """新增人员 → 在 Redmine 项目中创建一个 Issue"""
-        exists = await self._check_employee_id_exists(data.employee_id)
-        if exists:
-            logger.warning("新增人员失败：编号已存在 | employee_id=%s", data.employee_id)
-            raise ValueError(f"人员编号 {data.employee_id} 已存在")
+        """新增人员 → 在 Redmine 项目中创建一个 Issue（带分布式锁防并发重复）"""
+        lock_key = f"lock:personnel:create:{data.employee_id}"
+        lock_acquired = await redis_client.set_nx(lock_key, ttl=10)
+        if not lock_acquired:
+            logger.warning("获取创建锁失败，可能有并发请求 | employee_id=%s", data.employee_id)
+            raise ValueError(f"人员编号 {data.employee_id} 正在被创建，请稍后重试")
 
-        payload = self._build_create_payload(data)
-        logger.info("正在创建人员 | employee_id=%s | name=%s", data.employee_id, data.name)
         try:
-            response = await self.redmine.create_issue(payload)
-        except Exception as e:
-            logger.error("Redmine 创建 Issue 失败 | employee_id=%s | error=%s", data.employee_id, str(e))
-            raise RuntimeError(f"创建人员失败：{str(e)}") from e
+            exists = await self._check_employee_id_exists(data.employee_id)
+            if exists:
+                logger.warning("新增人员失败：编号已存在 | employee_id=%s", data.employee_id)
+                raise ValueError(f"人员编号 {data.employee_id} 已存在")
 
-        issue = response.get("issue", response)
-        personnel = Personnel.from_redmine_issue(issue)
-        logger.info("人员创建成功 | id=%s | employee_id=%s", personnel.id, personnel.employee_id)
-        return self._personnel_to_response(personnel)
+            payload = self._build_create_payload(data)
+            logger.info("正在创建人员 | employee_id=%s | name=%s", data.employee_id, data.name)
+            try:
+                response = await self.redmine.create_issue(payload)
+            except Exception as e:
+                logger.error("Redmine 创建 Issue 失败 | employee_id=%s | error=%s", data.employee_id, str(e))
+                raise RuntimeError(f"创建人员失败：{str(e)}") from e
+
+            issue = response.get("issue", response)
+            personnel = Personnel.from_redmine_issue(issue)
+            logger.info("人员创建成功 | id=%s | employee_id=%s", personnel.id, personnel.employee_id)
+            return self._personnel_to_response(personnel)
+        finally:
+            await redis_client.delete(lock_key)
 
     async def get_personnel_list(
         self, page: int = 1, size: int = 20,
@@ -64,6 +74,11 @@ class PersonnelService:
         filters = {}
         if keyword:
             filters["subject"] = keyword
+        if department:
+            filters["cf_6"] = department
+        if position:
+            filters["cf_7"] = position
+
         try:
             raw_response = await self.redmine.get_issues(
                 project_id=settings.REDMINE_PROJECT_ID,
@@ -85,11 +100,7 @@ class PersonnelService:
                 logger.warning("单条数据转换失败 | issue_id=%s | error=%s", issue_data.get("id"), str(e))
                 continue
 
-        # 内存过滤
-        if department:
-            personnel_list = [p for p in personnel_list if p.department == department]
-        if position:
-            personnel_list = [p for p in personnel_list if p.position == position]
+        # 内存过滤（日期范围和关键词 Redmine 不支持服务端过滤，保留内存处理）
         if start_date:
             sd = date_type.fromisoformat(start_date) if isinstance(start_date, str) else start_date
             personnel_list = [p for p in personnel_list if p.start_datetime and p.start_datetime >= sd]

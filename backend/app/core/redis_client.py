@@ -106,3 +106,18 @@ async def ttl_seconds(key: str) -> int:
     """获取 Key 剩余 TTL（秒）。返回 -2 表示不存在，-1 表示无过期时间。"""
     result = await _safe(lambda c: c.ttl(key))
     return result if result is not None else -2
+
+
+async def set_nx(key: str, value: str = "1", ttl: int = 10) -> bool:
+    """原子设置 Key（仅当不存在时），用于分布式锁。
+
+    返回 True 表示设置成功（获得锁），False 表示 Key 已存在（锁被占用）。
+    Redis 不可用时降级返回 True（不阻塞业务）。
+    """
+    async def _set_nx(client):
+        return await client.set(key, value, nx=True, ex=ttl)
+
+    result = await _safe(_set_nx)
+    if result is None:
+        return True
+    return bool(result)
