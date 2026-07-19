@@ -1,10 +1,14 @@
 """人员信息管理系统 — 后端入口"""
-import logging
-import logging.config
 import os
 import sys
 import time
 from contextlib import asynccontextmanager
+
+# 当脚本被直接运行（python backend/main.py）或被 multiprocessing spawn 时，
+# 设置包上下文以支持相对导入。python -m backend.main 和 uvicorn 导入模式
+# 下 __package__ 已由 Python 自动设置为 "backend"，此条件不触发。
+if __package__ in (None, ""):
+    __package__ = "backend"
 
 # 确保项目根目录在 sys.path 中（支持 python backend/main.py 和 python -m backend.main 两种启动方式）
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -17,96 +21,26 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.app.core.config import settings
-from backend.app.api.v1 import auth as auth_router
-from backend.app.api.v1 import personnel as personnel_router
-from backend.app.api.v1 import import_api as import_router
-from backend.app.core.redis_client import init_redis, close_redis
+from .app.core.config import settings
+from .app.api.v1 import auth as auth_router
+from .app.api.v1 import personnel as personnel_router
+from .app.api.v1 import import_api as import_router
+from .app.core.redis_client import init_redis, close_redis
+from .app.utils.logger import LoggerManager, get_logger
 
 
 # ═══════════════════════════════════════════════════════════════
 # 日志配置
 # ═══════════════════════════════════════════════════════════════
 
-def _build_log_config() -> dict:
-    """构建统一的 logging dictConfig，融合应用自定义配置与 uvicorn 默认配置。
+LoggerManager.setup(
+    log_dir=os.path.join(_PROJECT_ROOT, settings.LOG_DIR),
+    log_level=settings.LOG_LEVEL,
+    max_bytes=settings.LOG_MAX_BYTES,
+    backup_count=settings.LOG_BACKUP_COUNT,
+)
 
-    将其传递给 uvicorn.run(log_config=...) 可防止 uvicorn 内部调用
-    dictConfig() 时覆盖掉自定义的 handler/formatter。
-    """
-    log_dir = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        settings.LOG_DIR,
-    )
-    os.makedirs(log_dir, exist_ok=True)
-
-    return {
-        "version": 1,
-        "disable_existing_loggers": False,
-        "formatters": {
-            "default": {
-                "()": "uvicorn.logging.DefaultFormatter",
-                "fmt": "%(levelprefix)s %(message)s",
-                "use_colors": None,
-            },
-            "access": {
-                "()": "uvicorn.logging.AccessFormatter",
-                "fmt": '%(levelprefix)s %(client_addr)s - "%(request_line)s" %(status_code)s',
-            },
-            "custom": {
-                "()": "logging.Formatter",
-                "fmt": "%(asctime)s | %(levelname)-7s | %(name)s:%(lineno)d | %(message)s",
-                "datefmt": "%Y-%m-%d %H:%M:%S",
-            },
-        },
-        "handlers": {
-            "default": {
-                "formatter": "default",
-                "class": "logging.StreamHandler",
-                "stream": "ext://sys.stderr",
-            },
-            "access": {
-                "formatter": "access",
-                "class": "logging.StreamHandler",
-                "stream": "ext://sys.stdout",
-            },
-            "console": {
-                "formatter": "custom",
-                "class": "logging.StreamHandler",
-                "stream": "ext://sys.stdout",
-                "level": settings.LOG_LEVEL.upper(),
-            },
-            "file": {
-                "formatter": "custom",
-                "class": "logging.handlers.RotatingFileHandler",
-                "filename": os.path.join(log_dir, "app.log"),
-                "maxBytes": settings.LOG_MAX_BYTES,
-                "backupCount": settings.LOG_BACKUP_COUNT,
-                "encoding": "utf-8",
-                "level": "DEBUG",
-            },
-        },
-        "loggers": {
-            "uvicorn": {"handlers": ["default"], "level": "INFO", "propagate": False},
-            "uvicorn.error": {"level": "INFO"},
-            "uvicorn.access": {"handlers": ["access"], "level": "INFO", "propagate": False},
-            "httpx": {"level": "WARNING"},
-            "httpcore": {"level": "WARNING"},
-            "urllib3": {"level": "WARNING"},
-            "watchfiles": {"level": "WARNING"},
-        },
-        "root": {
-            "level": "DEBUG",
-            "handlers": ["console", "file"],
-        },
-    }
-
-
-# 模块导入时立即配置日志（确保 uvicorn 启动前的日志也能输出）
-# uvicorn.run() 会重新应用同一份配置，不会有副作用
-logging.config.dictConfig(_build_log_config())
-
-logger = logging.getLogger("backend.main")
+logger = get_logger("backend.main")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -261,5 +195,5 @@ if __name__ == "__main__":
         host=settings.FASTAPI_HOST,
         port=settings.FASTAPI_PORT,
         reload=settings.DEBUG,
-        log_config=_build_log_config(),
+        log_config=LoggerManager.get_uvicorn_config(),
     )

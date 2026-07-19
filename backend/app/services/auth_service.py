@@ -1,10 +1,13 @@
 from typing import Optional,Tuple,Any,List,Dict
-from backend.app.core.security import create_access_token
-from backend.app.core.redmine_client import RedmineClient
-from backend.app.core.config import settings
-from backend.app.schemas.auth import LoginRequest,LoginResponseData
-import logging
-logger = logging.getLogger(__name__)
+from ..core.security import create_access_token
+from ..core.redmine_client import RedmineClient
+from ..core.config import settings
+from ..schemas.auth import LoginRequest,LoginResponseData
+from ..utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 class AuthService:
     def __init__(self,redmine_client: RedmineClient):
         self.redmine = redmine_client

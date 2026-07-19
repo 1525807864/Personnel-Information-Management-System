@@ -2,9 +2,9 @@ from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-from backend.app.core.security import decode_access_token, is_token_blacklisted
-from backend.app.core.redmine_client import RedmineClient
-from backend.app.core.config import settings
+from .security import decode_access_token, is_token_blacklisted
+from .redmine_client import RedmineClient
+from .config import settings
 
 # HTTP Bearer 认证方案
 security_scheme = HTTPBearer(auto_error=False)
