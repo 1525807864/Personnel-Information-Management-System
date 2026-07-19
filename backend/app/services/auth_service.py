@@ -4,7 +4,7 @@ from ..core.redmine_client import RedmineClient
 from ..core.config import settings
 from ..schemas.auth import LoginRequest,LoginResponseData
 from ..utils.logger import get_logger
-
+from ..models.user import RedmineUser
 logger = get_logger(__name__)
 
 
@@ -29,33 +29,33 @@ class AuthService:
         if user_info is None:
             logger.warning("Redmine 凭证验证失败|login=%s",request.username)
             return False,"用户名或密码错误",None
-        user = user_info.get('user',user_info)
-        status = user.get('status',1)
-        logger.info("账号状态: %s | login=%s", status, request.username)
-        if status == 3:
+        redmine_user = RedmineUser.from_redmine_api(user_info)
+
+        logger.info("账号状态: %s | login=%s", redmine_user.status, request.username)
+        if redmine_user.status == 3:
             logger.warning("账号已被锁定 | login=%s | status=%s",
-                           request.username, status)
+                           request.username, redmine_user.status)
             return False,"账号被锁定，请联系管理员",None
-        if status not in (1,2):
+        if redmine_user.status not in (1,2):
             logger.warning("账号状态异常 | login=%s | status=%s",
-                           request.username, status)
+                           request.username, redmine_user.status)
             return False,"账号状态异常，登录失败",None
-        user_id = user.get('id')
-        full_user = await self.redmine.get_user_with_api_key(user_id)
+        full_user = await self.redmine.get_user_with_api_key(redmine_user.id)
         if full_user:
-            custom_fields = full_user.get('user',{}).get('custom_fields',[])
-            logger.info("获取到用户完整信息 | user_id=%s | custom_fields_count=%s",user_id, len(custom_fields))
-            user = full_user.get('user',full_user)
-        role = "admin" if user.get('admin',False) else "user"
+            redmine_user = RedmineUser.from_redmine_api(full_user)
+            logger.info("获取到用户完整信息 | user_id=%s | custom_fields_count=%s",
+                        redmine_user.id, len(redmine_user.custom_fields))
+
+        role = "admin" if redmine_user.admin else "user"
         return True,"登录成功",{
-            "user_id":user.get("id"),
-            "login":user.get("login"),
-            "name":f"{user.get('lastname','')}{user.get('firstname','')}",
-            "email":user.get("email",""),
+            "user_id":redmine_user.id,
+            "login":redmine_user.login,
+            "name":f"{redmine_user.lastname}{redmine_user.firstname}",
+            "email":redmine_user.email,
             "role":role,
-            "status":user.get("status"),
-            "admin":user.get("admin",False),
-            "custom_fields":user.get("custom_fields",[]),
+            "status":redmine_user.status,
+            "admin":redmine_user.admin,
+            "custom_fields":redmine_user.custom_fields,
 
         }
     #为已验证的用户生成jwt token
