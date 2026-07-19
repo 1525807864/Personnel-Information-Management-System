@@ -1,24 +1,24 @@
 """
 人员管理 API 路由
 """
-import logging
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Path, Body, status
 
-from backend.app.core.dependencies import get_current_user, get_redmine_client
-from backend.app.core.redmine_client import RedmineClient
-from backend.app.schemas.common import ApiResponse, PaginationData
-from backend.app.schemas.personnel import (
+from ...core.dependencies import get_current_user, get_redmine_client
+from ...core.redmine_client import RedmineClient
+from ...schemas.common import ApiResponse, PaginationData
+from ...schemas.personnel import (
     PersonnelCreate,
     PersonnelUpdate,
     PersonnelResponse,
     PersonnelSearchRequest,
     BatchDeleteResponse,
 )
-from backend.app.services.personnel_service import PersonnelService
+from ...services.personnel_service import PersonnelService
+from ...utils.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # prefix 已经是 /api/v1/personnel，路由用 "/" 表示 /api/v1/personnel/
 router = APIRouter(prefix="/api/v1/personnel", tags=["人员管理"])
@@ -36,7 +36,7 @@ def _get_service(redmine_client: RedmineClient = Depends(get_redmine_client)) ->
 @router.post(
     "/",
     response_model=ApiResponse[PersonnelResponse],
-    status_code=status.HTTP_201_CREATED,
+    status_code=status.HTTP_200_OK,
     summary="新增人员",
 )
 async def create_personnel(

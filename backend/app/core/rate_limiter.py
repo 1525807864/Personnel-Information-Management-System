@@ -3,12 +3,12 @@
 Redis 不可用时降级放行，不阻塞正常登录流程。
 """
 
-import logging
 from fastapi import HTTPException, status, Request
 
-from backend.app.core import redis_client
+from . import redis_client
+from ..utils.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 _LOGIN_MAX_ATTEMPTS = 5
 _LOGIN_WINDOW_SECONDS = 60

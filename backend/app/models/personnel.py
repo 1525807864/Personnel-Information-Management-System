@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing import Optional, Dict, Any
 from datetime import datetime, date
 
-from backend.app.core.config import settings
+from ..core.config import settings
 
 
 class Personnel(BaseModel):
@@ -89,31 +89,22 @@ class Personnel(BaseModel):
         )
 
     def to_redmine_payload(self) -> dict:
-        """
-        将 Personnel 转为 Redmine Issue 创建/更新所需的扁平 dict
+        """将 Personnel 转为 Redmine Issue 创建/更新所需的扁平 dict。"""
+        from .custom_field import PersonnelFieldMapping
 
-        返回格式：
-        {
-          "subject": "EMP001 - 张三",
-          "project_id": 1,
-          "cf_1": "EMP001",   // employee_id
-          "cf_2": "张三",      // name
-          "cf_3": "男",        // gender
-          ...
-        }
-        """
-        return {
-            "subject": f"{self.employee_id} - {self.name}",
-            "project_id": settings.REDMINE_PROJECT_ID,
-            "cf_1": self.employee_id,
-            "cf_2": self.name,
-            "cf_3": self.gender,
-            "cf_4": str(self.age),
-            "cf_5": self.phone,
-            "cf_11": self.email,
-            "cf_6": self.department,
-            "cf_7": self.position,
-            "cf_8": str(self.start_datetime) if self.start_datetime else "",
-            "cf_9": str(self.create_datetime) if self.create_datetime else "",
-            "cf_10": str(self.update_datetime) if self.update_datetime else "",
-        }
+        return PersonnelFieldMapping.build_payload(
+            {
+                "employee_id": self.employee_id,
+                "name": self.name,
+                "gender": self.gender,
+                "age": self.age,
+                "phone": self.phone,
+                "email": self.email,
+                "department": self.department,
+                "position": self.position,
+                "start_datetime": str(self.start_datetime) if self.start_datetime else "",
+                "create_datetime": str(self.create_datetime) if self.create_datetime else "",
+                "update_datetime": str(self.update_datetime) if self.update_datetime else "",
+            },
+            project_id=settings.REDMINE_PROJECT_ID,
+        )

@@ -8,8 +8,9 @@ import time
 import httpx
 from typing import Dict,Any,List,Optional
 from datetime import datetime
-import logging
-logger = logging.getLogger(__name__)
+from ..utils.logger import get_logger
+
+logger = get_logger(__name__)
 class RedmineClient:
     def __init__(self,base_url:str,api_key:str):
         self.base_url = base_url

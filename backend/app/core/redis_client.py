@@ -3,15 +3,15 @@
 Redis 不可用时所有操作降级返回安全默认值（None / False），不会崩溃。
 """
 
-import logging
 from typing import Optional
 
 import redis.asyncio as aioredis
 from redis.asyncio import ConnectionPool
 
-from backend.app.core.config import settings
+from .config import settings
+from ..utils.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 _pool: Optional[ConnectionPool] = None
 

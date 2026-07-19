@@ -1,21 +1,21 @@
 """
 人员管理 — 业务逻辑层，数据以 Redmine Issue 形式存储在项目内
 """
-import logging
 from datetime import date as date_type
 from typing import Optional, List, Dict, Any
 
-from backend.app.core.redmine_client import RedmineClient
-from backend.app.core.config import settings
-from backend.app.models.personnel import Personnel
-from backend.app.schemas.personnel import (
+from ..core.redmine_client import RedmineClient
+from ..core.config import settings
+from ..models.personnel import Personnel
+from ..schemas.personnel import (
     PersonnelCreate,
     PersonnelUpdate,
     PersonnelResponse,
     PersonnelSearchRequest,
 )
+from ..utils.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class PersonnelService:
@@ -254,21 +254,23 @@ class PersonnelService:
 
     def _build_create_payload(self, data: PersonnelCreate) -> Dict[str, Any]:
         """将 PersonnelCreate 转为 Redmine Issue 创建的 payload"""
-        return {
-            "subject": f"{data.employee_id} - {data.name}",
-            "project_id": settings.REDMINE_PROJECT_ID,
-            "tracker_id": 1,
-            "status_id": 1,
-            "cf_1": data.employee_id,
-            "cf_2": data.name,
-            "cf_3": data.gender,
-            "cf_4": str(data.age),
-            "cf_5": data.phone,
-            "cf_6": data.department,
-            "cf_7": data.position,
-            "cf_8": data.hire_date.isoformat(),
-            "cf_11": data.email,
-        }
+        from ..models.custom_field import PersonnelFieldMapping
+
+        return PersonnelFieldMapping.build_payload(
+            {
+                "employee_id": data.employee_id,
+                "name": data.name,
+                "gender": data.gender,
+                "age": data.age,
+                "phone": data.phone,
+                "email": data.email,
+                "department": data.department,
+                "position": data.position,
+                "start_datetime": data.hire_date.isoformat(),
+            },
+            project_id=settings.REDMINE_PROJECT_ID,
+            include_meta=True,
+        )
 
     def _personnel_to_response(self, personnel: Personnel) -> PersonnelResponse:
         """Personnel → PersonnelResponse"""
