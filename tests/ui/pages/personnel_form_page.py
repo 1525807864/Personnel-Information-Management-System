@@ -38,7 +38,7 @@ class PersonnelFormPage(BasePage):
     def open(self, base_url: str) -> "PersonnelFormPage":
         """打开新增人员页面"""
         self.goto(f"{base_url}/add")
-        self.wait_for_load_state("networkidle")
+        self.wait_for_selector(self.FIELD_EMPLOYEE_ID, timeout=15_000)
         return self
 
     # ── 页面状态 ────────────────────────────────────────────

@@ -29,7 +29,7 @@ class SearchPage(BasePage):
 
     def open(self, base_url: str) -> "SearchPage":
         self.goto(f"{base_url}/search")
-        self.wait_for_load_state(self.SEARCH_BTN,timeout=15_000)
+        self.wait_for_selector(self.SEARCH_BTN, timeout=15_000)
         return self
 
     # ── 搜索表单 ────────────────────────────────────────────

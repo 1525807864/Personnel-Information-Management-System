@@ -27,7 +27,7 @@ class ImportPage(BasePage):
 
     def open(self, base_url: str) -> "ImportPage":
         self.goto(f"{base_url}/import")
-        self.wait_for_load_state("networkidle")
+        self.wait_for_selector(self.UPLOAD_COMPONENT, timeout=15_000)
         return self
 
     # ── 文件上传 ────────────────────────────────────────────

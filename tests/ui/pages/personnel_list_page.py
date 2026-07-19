@@ -34,7 +34,7 @@ class PersonnelListPage(BasePage):
 
     def open(self, base_url: str) -> "PersonnelListPage":
         self.goto(f"{base_url}/personnel")
-        self.wait_for_load_state("networkidle")
+        self.wait_for_selector(self.DATA_TABLE, timeout=15_000)
         return self
 
     # ── 搜索 ────────────────────────────────────────────────

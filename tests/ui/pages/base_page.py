@@ -17,15 +17,15 @@ class BasePage:
 
     # ── 导航 ───────────────────────────────────────────────
 
-    def goto(self, url: str, wait_until: str = "domcontentloaded") -> None:
+    def goto(self, url: str, wait_until: str = "networkidle") -> None:
         self.page.goto(url, wait_until=wait_until)
         self._logger.info("[NAV] goto %s", url)
 
     def refresh(self) -> None:
-        self.page.reload(wait_until="domcontentloaded")
+        self.page.reload(wait_until="networkidle")
 
     def go_back(self) -> None:
-        self.page.go_back(wait_until="domcontentloaded")
+        self.page.go_back(wait_until="networkidle")
 
     # ── 等待 ───────────────────────────────────────────────
 

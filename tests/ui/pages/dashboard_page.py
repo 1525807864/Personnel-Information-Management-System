@@ -49,25 +49,25 @@ class DashboardPage(BasePage):
     def go_to_personnel_list(self) -> "PersonnelListPage":
 
         self.click_text("人员列表")
-        self.wait_for_load_state("networkidle")
+        self.wait_for_timeout(1500)
         return PersonnelListPage(self.page)
 
     def go_to_search(self) -> "SearchPage":
 
         self.click_text("高级搜索")
-        self.wait_for_load_state("networkidle")
+        self.wait_for_timeout(1500)
         return SearchPage(self.page)
 
     def go_to_add_personnel(self) -> "PersonnelFormPage":
 
         self.click_text("新增人员")
-        self.wait_for_load_state("networkidle")
+        self.wait_for_timeout(1500)
         return PersonnelFormPage(self.page)
 
     def go_to_import(self) -> "ImportPage":
 
         self.click_text("数据导入")
-        self.wait_for_load_state("networkidle")
+        self.wait_for_timeout(1500)
         return ImportPage(self.page)
 
     # ── 卡片快捷入口 ────────────────────────────────────────
@@ -75,19 +75,19 @@ class DashboardPage(BasePage):
     def click_card_personnel(self) -> "PersonnelListPage":
 
         self.click(self.CARD_PERSONNEL)
-        self.wait_for_load_state("networkidle")
+        self.wait_for_timeout(1500)
         return PersonnelListPage(self.page)
 
     def click_card_search(self) -> "SearchPage":
 
         self.click(self.CARD_SEARCH)
-        self.wait_for_load_state("networkidle")
+        self.wait_for_timeout(1500)
         return SearchPage(self.page)
 
     def click_card_import(self) -> "ImportPage":
 
         self.click(self.CARD_IMPORT)
-        self.wait_for_load_state("networkidle")
+        self.wait_for_timeout(1500)
         return ImportPage(self.page)
 
     # ── 退出登录 ────────────────────────────────────────────

@@ -1,5 +1,3 @@
-from asyncio import timeout
-
 from ..pages.base_page import BasePage
 
 
@@ -17,7 +15,7 @@ class LoginPage(BasePage):
     def open(self, base_url: str) -> "LoginPage":
         """打开登录页面"""
         self.goto(f"{base_url}/login")
-        self.wait_for_load_state(self.USERNAME_INPUT,timeout=15_000)
+        self.wait_for_selector(self.USERNAME_INPUT, timeout=15_000)
         return self
 
     # ── 元素操作 ────────────────────────────────────────────
