@@ -1,17 +1,19 @@
-from datetime import datetime
+from datetime import datetime, UTC
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 
-from backend.app.schemas.auth import LoginRequest, LoginResponseData
-from backend.app.services.auth_service import AuthService
-from backend.app.schemas.common import ApiResponse
-from backend.app.core.dependencies import get_redmine_client, get_current_user
-from backend.app.core.redmine_client import RedmineClient
-from backend.app.core.rate_limiter import check_login_rate_limit
-from backend.app.core.security import decode_access_token, blacklist_token
-import logging
+from ...schemas.auth import LoginRequest, LoginResponseData
+from ...services.auth_service import AuthService
+from ...schemas.common import ApiResponse
+from ...core.dependencies import get_redmine_client, get_current_user
+from ...core.redmine_client import RedmineClient
+from ...core.rate_limiter import check_login_rate_limit
+from ...core.security import decode_access_token, blacklist_token
+from ...utils.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
+
+
 router = APIRouter(prefix="/api/v1/auth", tags=["认证"])
 
 
@@ -70,7 +72,7 @@ async def logout(
         jti = payload.get("jti")
         if jti:
             exp = payload.get("exp", 0)
-            now_ts = int(datetime.utcnow().timestamp())
+            now_ts = int(datetime.now(UTC).timestamp())
             remaining = max(exp - now_ts, 1)
             await blacklist_token(jti, remaining)
             logger.info("Token 已加入黑名单 | sub=%s | jti=%s | ttl=%ds",

@@ -3,16 +3,16 @@ author :LiShaoPeng
 date: 2026/07/15
 """
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from typing import Optional, Dict, Any
 
 from jose import jwt, JWTError
 from passlib.context import CryptContext
-import logging
 
-from backend.app.core.config import settings
+from .config import settings
+from ..utils.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 #密码上下文，用于本地管理员账号的备用方案
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -23,10 +23,10 @@ EXPIRE_HOURS = settings.JWT_EXPIRE_HOURS
 def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
     """生成 JWT access token，自动附加 jti（JWT ID）用于撤销。"""
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(hours=EXPIRE_HOURS))
+    expire = datetime.now(UTC) + (expires_delta or timedelta(hours=EXPIRE_HOURS))
     to_encode.update({
         "exp": expire,
-        "iat": datetime.utcnow(),
+        "iat": datetime.now(UTC),
         "jti": uuid.uuid4().hex,
     })
     logger.debug("创建 JWT | sub=%s | jti=%s | expire_at=%s",
@@ -50,7 +50,7 @@ async def is_token_blacklisted(jti: str) -> bool:
 
     Redis 不可用时返回 False（降级放行）。
     """
-    from backend.app.core.redis_client import exists
+    from .redis_client import exists
     return await exists(f"blacklist:{jti}")
 
 
@@ -59,7 +59,7 @@ async def blacklist_token(jti: str, ttl: int) -> bool:
 
     ttl 应为 token 剩余有效秒数。
     """
-    from backend.app.core.redis_client import set_str
+    from .redis_client import set_str
     return await set_str(f"blacklist:{jti}", "1", ttl=ttl)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

@@ -37,7 +37,7 @@ app.layout = html.Div([
     dcc.Store(id="selected-ids", storage_type="session", data=[]),
     html.Div(id="page-content"),
 ])
-PUBLIC_ROUTES = {"/","/login"}
+PUBLIC_ROUTES = {"/login"}
 PROTECTED_ROUTES = {
     "/dashboard": dashboard_layout,
     "/personnel": personnel_list_layout,
@@ -94,8 +94,20 @@ def sync_auth_cache(token_data, user_data):
 )
 def handle_logout(n_clicks):
     if n_clicks:
-        from frontend.utils.auth import clear_auth
-        clear_auth()#清除内存缓存
+        from frontend.utils.auth import clear_auth,get_token
+        from frontend.utils.api_client import post
+
+        #从内存缓存中取出token
+        token = get_token()
+        if token:
+            try:
+                #调用后端/logout 将token的jti写出redis黑名单
+                post("/api/v1/auth/logout")
+            except Exception:
+                pass  #兜底机制 即使后端调用失败 不影响前端逻辑运行
+        #清除python内存缓存
+        clear_auth()
+        #清除浏览器sessionStorage+跳转登录页面
         return True,True,"/"
     return dash.no_update,dash.no_update,dash.no_update
 
