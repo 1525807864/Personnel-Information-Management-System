@@ -493,3 +493,182 @@ class TestGetUserWithApiKey:
         client = _make_client(handler)
         result = await client.get_user_with_api_key(9999)
         assert result is None
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# get_user 测试 — 覆盖 lines 22-25
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestGetUser:
+    """测试 get_user"""
+
+    async def test_get_user_success(self):
+        """获取单个用户信息成功"""
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert "/users/42.json" in request.url.path
+            return httpx.Response(200, json={
+                "user": {"id": 42, "login": "testuser", "admin": False}
+            })
+
+        client = _make_client(handler)
+        result = await client.get_user(42)
+        assert result["user"]["id"] == 42
+        assert result["user"]["login"] == "testuser"
+
+    async def test_get_user_not_found(self):
+        """用户不存在时抛出 HTTPStatusError"""
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(404, json={"errors": ["Not found"]})
+
+        client = _make_client(handler)
+        with pytest.raises(httpx.HTTPStatusError):
+            await client.get_user(9999)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# create_user 测试 — 覆盖 lines 58-82
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestCreateUser:
+    """测试 create_user"""
+
+    async def test_create_user_with_custom_fields(self):
+        """创建用户（含自定义字段）— 验证 payload 结构"""
+        captured_body = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured_body.update(json.loads(request.content))
+            return httpx.Response(201, json={
+                "user": {"id": 99, "login": "newuser"}
+            })
+
+        client = _make_client(handler)
+        result = await client.create_user({
+            "login": "newuser",
+            "password": "secret123",
+            "firstname": "New",
+            "lastname": "User",
+            "email": "new@test.com",
+            "status": 1,
+            "cf_6": "技术部",
+            "cf_7": "工程师",
+        })
+
+        assert result["user"]["id"] == 99
+        payload = captured_body["user"]
+        assert payload["login"] == "newuser"
+        assert payload["password"] == "secret123"
+        assert payload["firstname"] == "New"
+        assert payload["lastname"] == "User"
+        assert payload["mail"] == "new@test.com"
+        cf_ids = {cf["id"] for cf in payload["custom_fields"]}
+        assert 6 in cf_ids
+        assert 7 in cf_ids
+
+    async def test_create_user_without_custom_fields(self):
+        """创建用户无自定义字段时 payload 不含 custom_fields"""
+        captured_body = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured_body.update(json.loads(request.content))
+            return httpx.Response(201, json={"user": {"id": 100}})
+
+        client = _make_client(handler)
+        result = await client.create_user({
+            "login": "simple",
+            "password": "pass",
+        })
+
+        assert result["user"]["id"] == 100
+        assert "custom_fields" not in captured_body["user"]
+
+    async def test_create_user_http_error(self):
+        """HTTP 错误（如 422）抛出 HTTPStatusError"""
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(422, json={"errors": ["Login already exists"]})
+
+        client = _make_client(handler)
+        with pytest.raises(httpx.HTTPStatusError):
+            await client.create_user({"login": "dup", "password": "x"})
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# update_user 测试 — 覆盖 lines 86-112
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestUpdateUserRedmine:
+    """测试 update_user"""
+
+    async def test_update_user_basic_fields(self):
+        """更新用户基本字段"""
+        captured_body = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PUT"
+            captured_body.update(json.loads(request.content))
+            return httpx.Response(200, json={"user": {"id": 1}})
+
+        client = _make_client(handler)
+        result = await client.update_user(1, {
+            "firstname": "Updated",
+            "mail": "updated@test.com",
+        })
+
+        assert result["user"]["id"] == 1
+        payload = captured_body["user"]
+        assert payload["firstname"] == "Updated"
+        assert payload["mail"] == "updated@test.com"
+        # 未传入的字段不应出现在 payload 中
+        assert "login" not in payload
+
+    async def test_update_user_with_custom_fields(self):
+        """更新用户自定义字段"""
+        captured_body = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured_body.update(json.loads(request.content))
+            return httpx.Response(200, json={"user": {"id": 2}})
+
+        client = _make_client(handler)
+        await client.update_user(2, {"cf_6": "产品部", "cf_9": "高级"})
+
+        cf_list = captured_body["user"]["custom_fields"]
+        assert {"id": 6, "value": "产品部"} in cf_list
+        assert {"id": 9, "value": "高级"} in cf_list
+
+    async def test_update_user_http_error(self):
+        """更新用户 HTTP 错误抛出异常"""
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(404, json={"errors": ["User not found"]})
+
+        client = _make_client(handler)
+        with pytest.raises(httpx.HTTPStatusError):
+            await client.update_user(9999, {"firstname": "X"})
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# delete_user 测试 — 覆盖 lines 116-122
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestDeleteUser:
+    """测试 delete_user"""
+
+    async def test_delete_user_success(self):
+        """删除用户成功返回 True"""
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert "/users/55.json" in request.url.path
+            return httpx.Response(204)
+
+        client = _make_client(handler)
+        result = await client.delete_user(55)
+        assert result is True
+
+    async def test_delete_user_not_found(self):
+        """删除不存在的用户抛出 HTTPStatusError"""
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(404, json={"errors": ["Not found"]})
+
+        client = _make_client(handler)
+        with pytest.raises(httpx.HTTPStatusError):
+            await client.delete_user(9999)
