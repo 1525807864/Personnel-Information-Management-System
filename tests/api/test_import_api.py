@@ -7,6 +7,7 @@
 """
 import io
 import csv
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -138,10 +139,6 @@ class TestImportAPI:
 class TestExportErrors:
     """测试 POST /api/v1/import/export-errors"""
 
-    @pytest.mark.skip(
-        reason="源文件 import_api.py 第 177 行 Content-Disposition 头含中文文件名，"
-               "Starlette 在 Latin-1 编码时抛出 UnicodeEncodeError，需修复源文件"
-    )
     def test_export_errors_success(self, client, auth_headers):
         """导出错误行 → 返回 CSV 文件"""
         csv_bytes = _make_csv_bytes(VALID_CSV_ROWS)
@@ -204,4 +201,134 @@ class TestImportErrorPaths:
             headers=auth_headers,
         )
         assert resp.status_code == 400
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 异常路径覆盖 — 针对 import_api.py 中未覆盖的错误处理分支
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestImportFileReadError:
+    """覆盖 import_personnel_file 中 file.read() 异常分支 (lines 75-77)"""
+
+    def test_file_read_raises_exception(self, client, auth_headers):
+        """file.read() 抛异常 → 400"""
+        csv_bytes = _make_csv_bytes(VALID_CSV_ROWS)
+        with patch(
+            "starlette.datastructures.UploadFile.read",
+            new_callable=AsyncMock,
+        ) as mock_read:
+            mock_read.side_effect = OSError("磁盘 I/O 错误")
+            resp = client.post(
+                "/api/v1/import/",
+                files={"file": ("test.csv", csv_bytes, "text/csv")},
+                data={"strategy": "skip"},
+                headers=auth_headers,
+            )
+        assert resp.status_code == 400
+        assert "无法读取上传文件" in resp.json()["detail"]
+
+
+class TestImportUnexpectedError:
+    """覆盖 import_personnel_file 中非 FileImportException 的异常分支 (lines 90-92)"""
+
+    def test_import_service_raises_unexpected_exception(self, client, auth_headers):
+        """服务层抛非 FileImportException 的异常 → 500"""
+        csv_bytes = _make_csv_bytes(VALID_CSV_ROWS)
+        with patch(
+            "backend.app.services.import_service.ImportService.import_file",
+            new_callable=AsyncMock,
+        ) as mock_import:
+            mock_import.side_effect = RuntimeError("Redmine API 断连")
+            resp = client.post(
+                "/api/v1/import/",
+                files={"file": ("test.csv", csv_bytes, "text/csv")},
+                data={"strategy": "skip"},
+                headers=auth_headers,
+            )
+        assert resp.status_code == 500
+        assert "服务器内部错误" in resp.json()["detail"]
+
+
+class TestImportResultMessageBranches:
+    """覆盖响应消息构建的边界分支 (lines 96→98, 101)"""
+
+    def test_success_count_zero(self, client, auth_headers):
+        """全部导入失败 → success_count=0 → 不出现"成功 N 条"字样"""
+        # 所有行手机号格式错误 → Pydantic 校验失败 → 0 成功
+        bad_rows = [
+            ["人员编号", "姓名", "性别", "年龄", "手机号", "邮箱", "部门", "职位", "入职日期"],
+            ["B001", "无效一", "男", "20", "0000", "bad@t.com", "部", "职", "2024-01-01"],
+            ["B002", "无效二", "女", "30", "1111", "bad2@t.com", "部", "职", "2024-01-01"],
+        ]
+        csv_bytes = _make_csv_bytes(bad_rows)
+        resp = client.post(
+            "/api/v1/import/",
+            files={"file": ("bad.csv", csv_bytes, "text/csv")},
+            data={"strategy": "skip"},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data["success_count"] == 0
+        assert data["failed_count"] > 0
+        assert "成功" not in resp.json()["message"]
+
+    def test_duplicate_count_nonzero(self, client, auth_headers):
+        """重复导入同一文件 → duplicate_count > 0 → 消息含"重复 N 条" """
+        csv_bytes = _make_csv_bytes(VALID_CSV_ROWS)
+        # 第一次导入
+        resp1 = client.post(
+            "/api/v1/import/",
+            files={"file": ("dup.csv", csv_bytes, "text/csv")},
+            data={"strategy": "skip"},
+            headers=auth_headers,
+        )
+        assert resp1.status_code == 200
+        # 第二次导入（skip 策略下重复行被跳过）
+        resp2 = client.post(
+            "/api/v1/import/",
+            files={"file": ("dup.csv", csv_bytes, "text/csv")},
+            data={"strategy": "skip"},
+            headers=auth_headers,
+        )
+        assert resp2.status_code == 200
+        data = resp2.json()["data"]
+        assert data["duplicate_count"] > 0
+        assert "重复" in resp2.json()["message"]
+
+
+class TestExportErrorsFileReadError:
+    """覆盖 export_error_rows 中 file.read() 异常分支 (lines 155-157)"""
+
+    def test_file_read_raises_exception(self, client, auth_headers):
+        """export-errors: file.read() 抛异常 → 400"""
+        csv_bytes = _make_csv_bytes(VALID_CSV_ROWS)
+        with patch(
+            "starlette.datastructures.UploadFile.read",
+            new_callable=AsyncMock,
+        ) as mock_read:
+            mock_read.side_effect = OSError("磁盘 I/O 错误")
+            resp = client.post(
+                "/api/v1/import/export-errors",
+                files={"file": ("test.csv", csv_bytes, "text/csv")},
+                data={"error_rows": "2,3"},
+                headers=auth_headers,
+            )
+        assert resp.status_code == 400
+        assert "无法读取上传文件" in resp.json()["detail"]
+
+
+class TestExportErrorsEmptyFile:
+    """覆盖 export_error_rows 中空文件检查 (line 159-160)"""
+
+    def test_export_empty_file_content(self, client, auth_headers):
+        """空文件内容 → 400"""
+        resp = client.post(
+            "/api/v1/import/export-errors",
+            files={"file": ("empty.csv", b"", "text/csv")},
+            data={"error_rows": "1,2"},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 400
+        assert "文件内容为空" in resp.json()["detail"]
 

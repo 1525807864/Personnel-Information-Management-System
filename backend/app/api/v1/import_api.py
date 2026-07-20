@@ -10,6 +10,7 @@
 """
 import io
 from typing import List
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
@@ -170,11 +171,13 @@ async def export_error_rows(
     # --- 返回 CSV 文件流 ---
     original_name = filename.rsplit(".", 1)[0]
     download_name = f"{original_name}_错误数据.csv"
+    # RFC 5987: filename*= 中的非 ASCII 字符必须百分号编码
+    encoded_name = quote(download_name, safe="")
 
     return StreamingResponse(
         io.BytesIO(csv_bytes),
         media_type="text/csv; charset=utf-8-sig",
         headers={
-            "Content-Disposition": f"attachment; filename*=UTF-8''{download_name}",
+            "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_name}",
         },
     )
