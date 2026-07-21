@@ -72,24 +72,27 @@ class PersonnelService:
         logger.info("查询人员列表 | page=%s | size=%s", page, size)
 
         filters = {}
-        if keyword:
-            filters["subject"] = keyword
+        # keyword 不做 Redmine 服务端过滤（Redmine API 不支持 subject 模糊匹配），
+        # 统一在内存中按 name / employee_id 进行模糊查找
         if department:
             filters["cf_6"] = department
         if position:
             filters["cf_7"] = position
 
+        # 当存在需要内存过滤的条件时，一次拉取更多数据避免分页遗漏
+        _need_memory_filter = bool(keyword or start_date or end_date)
+        _fetch_limit = 100 if _need_memory_filter else min(size, 100)
+
         try:
             raw_response = await self.redmine.get_issues(
                 project_id=settings.REDMINE_PROJECT_ID,
-                page=page, limit=min(size, 100), filters=filters if filters else None,
+                page=1, limit=_fetch_limit, filters=filters if filters else None,
             )
         except Exception as e:
             logger.error("获取人员列表失败 | error=%s", str(e))
             raise RuntimeError(f"获取人员列表失败：{str(e)}") from e
 
         issues_data = raw_response.get("issues", [])
-        total_count = raw_response.get("total_count", 0)
 
         personnel_list: List[Personnel] = []
         for issue_data in issues_data:
@@ -130,8 +133,16 @@ class PersonnelService:
         else:
             personnel_list.sort(key=lambda p: getattr(p, actual_field, "") or "", reverse=reverse)
 
-        items = [self._personnel_to_response(p) for p in personnel_list]
-        return {"total": total_count, "page": page, "size": size, "items": items}
+        # 内存过滤后的实际总数
+        filtered_total = len(personnel_list)
+
+        # 内存分页
+        start_idx = (page - 1) * size
+        end_idx = start_idx + size
+        paged = personnel_list[start_idx:end_idx]
+
+        items = [self._personnel_to_response(p) for p in paged]
+        return {"total": filtered_total, "page": page, "size": size, "items": items}
 
     async def search_personnel(self, search_data: PersonnelSearchRequest) -> Dict[str, Any]:
         """高级搜索"""

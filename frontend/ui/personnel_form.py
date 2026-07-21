@@ -3,7 +3,7 @@
 import re
 from dash import html, dcc, Input, Output, State, callback
 import dash_bootstrap_components as dbc
-
+import regex
 from frontend.components.sidebar import create_sidebar
 from frontend.components.navbar import create_navbar
 from frontend.utils import api_client
@@ -12,7 +12,7 @@ from frontend.utils.auth import save_token
 # 校验规则
 _RE_EMPLOYEE_ID = re.compile(r"^[a-zA-Z0-9_-]{1,20}$")
 _RE_PHONE = re.compile(r"^1[3-9]\d{9}$")
-_RE_SAFE_TEXT = re.compile(r"^[a-zA-Z0-9_\-\s]{1,50}$")
+_RE_SAFE_TEXT = regex.compile(r"^[\p{L}\p{N}\s\-\_()（）]{1,50}$")
 
 
 def _build_field(label: str, field_id: str, placeholder: str = "", field_type: str = "text",
