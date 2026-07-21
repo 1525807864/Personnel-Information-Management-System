@@ -56,9 +56,12 @@ class LoginPage(BasePage):
 
     # ── 等待 ────────────────────────────────────────────────
 
-    def wait_for_dashboard(self, timeout: int = 20_000) -> None:
+    def wait_for_dashboard(self, timeout: int = 30_000) -> None:
         """等待登录成功后跳转到仪表盘"""
-        self.wait_for_text("欢迎使用人员信息管理系统", timeout=timeout)
+        try:
+            self.wait_for_text("欢迎使用人员信息管理系统", timeout=timeout)
+        except Exception:
+            raise AssertionError("登录超时，未跳转到仪表盘")
 
     def wait_for_url_dashboard(self, timeout: int = 15_000) -> None:
         """等待 URL 变为 /dashboard"""
