@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     # ─── 日志配置 ───
     LOG_LEVEL: str = "INFO"  # DEBUG / INFO / WARNING / ERROR
     LOG_DIR: str = "logs"  # 日志文件目录（相对于项目根目录）
-    LOG_MAX_BYTES: int = 10 * 1024 * 1024  # 单个日志文件最大 10MB
+    LOG_MAX_BYTES: int = 100 * 1024 * 1024  # 单个日志文件最大 100MB
     LOG_BACKUP_COUNT: int = 5  # 最多保留 5 个历史日志
     model_config = {
         "env_file": os.path.join(_PROJECT_ROOT, ".env"),
