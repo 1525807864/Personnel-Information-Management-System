@@ -66,10 +66,18 @@ class SearchPage(BasePage):
 
     def click_search(self) -> "SearchPage":
         self.click(self.SEARCH_BTN)
-        # 等待搜索结果加载（回调 + API 请求）
+        # 等待搜索回调完成：#sr-result-info 文本非空，或出现无结果/搜索失败/请先登录提示
         try:
-            self.page.wait_for_selector(
-                f"{self.RESULT_INFO}, text=未找到匹配的记录",
+            self.page.wait_for_function(
+                """() => {
+                    const info = document.querySelector('#sr-result-info');
+                    const infoText = info ? info.textContent.trim() : '';
+                    if (infoText) return true;
+                    const body = document.body.innerText;
+                    return body.includes('未找到匹配的记录') ||
+                           body.includes('搜索失败') ||
+                           body.includes('请先登录');
+                }""",
                 timeout=15_000,
             )
         except Exception:
