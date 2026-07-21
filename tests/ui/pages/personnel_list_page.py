@@ -34,7 +34,9 @@ class PersonnelListPage(BasePage):
 
     def open(self, base_url: str) -> "PersonnelListPage":
         self.goto(f"{base_url}/personnel")
-        self.wait_for_selector(self.DATA_TABLE, timeout=15_000)
+        # 使用 state="attached" 因为 DataTable 在 dbc.Spinner 包裹下
+        # 加载期间可能处于 hidden 状态，但 DOM 中已存在即可操作
+        self.wait_for_selector(self.DATA_TABLE, timeout=15_000, state="attached")
         return self
 
     # ── 搜索 ────────────────────────────────────────────────

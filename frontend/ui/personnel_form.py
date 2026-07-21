@@ -13,7 +13,7 @@ from frontend.utils.auth import save_token
 _RE_EMPLOYEE_ID = re.compile(r"^[a-zA-Z0-9_-]{1,20}$")
 _RE_PHONE = re.compile(r"^1[3-9]\d{9}$")
 _RE_SAFE_TEXT = regex.compile(r"^[\p{L}\p{N}\s\-\_()（）]{1,50}$")
-
+_RE_EMAIL = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
 
 def _build_field(label: str, field_id: str, placeholder: str = "", field_type: str = "text",
                  options: list = None, required: bool = True):
@@ -84,6 +84,8 @@ def submit_form(n_clicks, edit_id, employee_id, name, gender, age, phone, email,
         errors.append("姓名格式不正确")
     if not _RE_PHONE.match(phone):
         errors.append("手机号格式不正确，请输入11位手机号")
+    if not _RE_EMAIL.match(email):
+        errors.append("邮箱格式不正确")
     if errors:
         return dbc.Alert("；".join(errors), color="warning"), False
 
