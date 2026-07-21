@@ -20,7 +20,7 @@ class LoggerManager:
 
     _log_dir: str = ""
     _log_level: str = "INFO"
-    _max_bytes: int = 10 * 1024 * 1024
+    _max_bytes: int = 100 * 1024 * 1024
     _backup_count: int = 5
 
     # ── 公开方法 ──────────────────────────────────────────────
@@ -30,7 +30,7 @@ class LoggerManager:
         cls,
         log_dir: str,
         log_level: str = "INFO",
-        max_bytes: int = 10 * 1024 * 1024,
+        max_bytes: int = 100 * 1024 * 1024,
         backup_count: int = 5,
     ) -> None:
         """应用启动时调用：创建日志目录并应用全局 logging 配置。"""

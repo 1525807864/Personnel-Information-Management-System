@@ -33,7 +33,7 @@ SAMPLE_PERSONNEL = {
 
 SAMPLE_PERSONNEL_2 = {
     "employee_id": "EMP002",
-    "name": "李四",
+    "name": "おうまな",
     "gender": "女",
     "age": 30,
     "phone": "13900139000",
