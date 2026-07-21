@@ -1,7 +1,7 @@
 import re
 from datetime import date, datetime
 from typing import Optional, List, Annotated
-
+import regex
 from pydantic import BaseModel, Field, EmailStr, field_validator, ConfigDict
 
 # =============================================================================
@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, EmailStr, field_validator, ConfigDict
 
 PHONE_PATTERN = re.compile(r"^1[3-9]\d{9}$")
 EMPLOYEE_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{1,20}$")
-SAFE_TEXT_PATTERN = re.compile(r"^[一-龥a-zA-Z0-9_\-()\s]{1,50}$")
+SAFE_TEXT_PATTERN = regex.compile(r"^[\p{L}\p{N}\s\-\_()（）]{1,50}$")
 
 # =============================================================================
 # 共享字段类型

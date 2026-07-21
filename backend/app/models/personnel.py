@@ -3,7 +3,7 @@
 """
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
-from datetime import datetime, date
+from datetime import datetime, date, timedelta, timezone
 
 from ..core.config import settings
 
@@ -51,17 +51,19 @@ class Personnel(BaseModel):
         # 解析日期字段
         start_dt = None
         raw_start = cf_map.get("start_datetime")
+        _BEIJING = timezone(timedelta(hours=8))
         if raw_start:
             try:
-                start_dt = date.fromisoformat(raw_start)
+                start_dt = datetime.fromisoformat(raw_start.replace("Z","+00:00")).astimezone(_BEIJING).replace(tzinfo=None)
             except (ValueError, TypeError):
                 pass
-
         created = None
         raw_created = issue.get("created_on")
         if raw_created:
             try:
-                created = datetime.fromisoformat(raw_created.replace("Z", "+00:00"))
+                created = datetime.fromisoformat(
+                    raw_created.replace("Z", "+00:00")
+                ).astimezone(_BEIJING).replace(tzinfo=None)
             except (ValueError, TypeError):
                 pass
 
@@ -69,7 +71,9 @@ class Personnel(BaseModel):
         raw_updated = issue.get("updated_on")
         if raw_updated:
             try:
-                updated = datetime.fromisoformat(raw_updated.replace("Z", "+00:00"))
+                updated = datetime.fromisoformat(
+                    raw_updated.replace("Z", "+00:00")
+                ).astimezone(_BEIJING).replace(tzinfo=None)
             except (ValueError, TypeError):
                 pass
 
