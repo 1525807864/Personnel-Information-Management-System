@@ -54,7 +54,7 @@ def _handle_response(resp: requests.Response) -> dict:
     if resp.status_code >= 400:
         detail = data.get("detail", {})
         if isinstance(detail, dict):
-            msg = detail.get("message") or str(resp.reason)
+            msg = detail.get("message") or data.get("message") or str(resp.reason)
         else:
             msg = detail or data.get("message") or str(resp.reason)
         return {"code": resp.status_code, "message": msg, "data": None}

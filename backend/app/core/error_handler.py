@@ -25,14 +25,13 @@ FIELD_LABELS = {
 
 ERROR_TEMPLATES = {
     "string_pattern_mismatch": "{field}格式不正确",
-    "value_error.missing": "{field}不能为空",
-    "type_error.integer": "{field}必须为数字",
+    "missing": "{field}不能为空",
+    "int_parsing": "{field}必须为数字",
+    "string_too_short": "{field}长度不能少于{min_length}位",
+    "string_too_long": "{field}长度不能超过{max_length}位",
+    "greater_than_equal": "{field}不能小于{ge}",
+    "less_than_equal": "{field}不能大于{le}",
     "value_error.email": "邮箱格式不正确",
-    "value_error.number.not_ge": "{field}不能小于{min_value}",
-    "value_error.number.not_le": "{field}不能大于{max_value}",
-    "value_error.any_str.min_length": "{field}长度不能少于{min_length}位",
-    "value_error.any_str.max_length": "{field}长度不能超过{max_length}位",
-    "value_error.date": "入职日期格式不正确",
 }
 
 
@@ -49,7 +48,10 @@ async def validation_handler(request: Request, exc: RequestValidationError) -> J
             ctx["field"] = label
             messages.append(tpl.format(**ctx))
         else:
-            messages.append(err.get("msg", f"{label}校验失败"))
+            msg = err.get("msg", f"{label}校验失败")
+            if err.get("type") == "value_error":
+                msg = msg.removeprefix("Value error, ")
+            messages.append(msg)
     logger.warning("请求校验失败 | %s", "；".join(messages))
     return JSONResponse(
         status_code=422,
