@@ -396,7 +396,7 @@ class ImportService:
                 elif strategy == "overwrite":
                     issue_id = existing_map[employee_id]
                     try:
-                        payload = self._build_update_payload(row_data)
+                        payload = self._build_payload(row_data, for_update=True)
                         await self.redmine.update_issue(issue_id, payload)
                         overwritten += 1
                         success += 1
@@ -425,7 +425,7 @@ class ImportService:
 
             # --- 不重复：创建新 Redmine Issue ---
             try:
-                payload = self._build_create_payload(row_data)
+                payload = self._build_payload(row_data)
                 create_result = await self.redmine.create_issue(payload)
                 # 创建成功后，将该编号加入 existing_map，避免同一批次中后续行重复创建
                 new_issue_id = create_result.get("issue", {}).get("id")
@@ -451,8 +451,8 @@ class ImportService:
     # 辅助方法：构建 Redmine API payload
     # ------------------------------------------------------------------
 
-    def _build_create_payload(self, row_data: dict) -> dict:
-        """将校验通过的行数据构建为 Redmine create_issue 所需的 payload"""
+    def _build_payload(self, row_data: dict, *, for_update: bool = False) -> dict:
+        """将导入行数据构建为 Redmine Issue API payload"""
         from ..models.custom_field import PersonnelFieldMapping
 
         hire_date = row_data.get("hire_date")
@@ -468,27 +468,8 @@ class ImportService:
                 "position": str(row_data.get("position", "")).strip(),
                 "start_datetime": str(hire_date) if hire_date else "",
             },
-            project_id=settings.REDMINE_PROJECT_ID,
-            include_meta=True,
-        )
-
-    def _build_update_payload(self, row_data: dict) -> dict:
-        """构建 Redmine update_issue 所需的 payload"""
-        from ..models.custom_field import PersonnelFieldMapping
-
-        hire_date = row_data.get("hire_date")
-        return PersonnelFieldMapping.build_payload(
-            {
-                "employee_id": str(row_data.get("employee_id", "")).strip(),
-                "name": str(row_data.get("name", "")).strip(),
-                "gender": str(row_data.get("gender", "")).strip(),
-                "age": str(row_data.get("age", "")).strip(),
-                "phone": str(row_data.get("phone", "")).strip(),
-                "email": str(row_data.get("email", "")).strip(),
-                "department": str(row_data.get("department", "")).strip(),
-                "position": str(row_data.get("position", "")).strip(),
-                "start_datetime": str(hire_date) if hire_date else "",
-            },
+            project_id=0 if for_update else settings.REDMINE_PROJECT_ID,
+            include_meta=not for_update,
         )
 
     # ------------------------------------------------------------------

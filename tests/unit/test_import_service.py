@@ -232,7 +232,7 @@ class TestValidateRows:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class TestBuildPayloads:
-    """测试 _build_create_payload() 和 _build_update_payload()"""
+    """测试 _build_payload()"""
 
     def test_create_payload_fields(self, svc):
         """创建 payload 应包含所有必要字段"""
@@ -241,7 +241,7 @@ class TestBuildPayloads:
             "age": 25, "phone": "13800138000", "email": "z@t.com",
             "department": "技术部", "position": "工程师", "hire_date": date(2024, 1, 1),
         }
-        payload = svc._build_create_payload(row)
+        payload = svc._build_payload(row)
         assert payload["subject"] == "EMP001 - 张三"
         assert "project_id" in payload
         assert payload["tracker_id"] == 1
@@ -264,7 +264,7 @@ class TestBuildPayloads:
             "department": "技术部", "position": "高级工程师",
             "hire_date": date(2024, 1, 1),
         }
-        payload = svc._build_update_payload(row)
+        payload = svc._build_payload(row, for_update=True)
         assert "project_id" not in payload
         assert "tracker_id" not in payload
         assert payload["cf_7"] == "高级工程师"

@@ -7,6 +7,22 @@ from datetime import datetime, date, timedelta, timezone
 
 from ..core.config import settings
 
+_BEIJING = timezone(timedelta(hours=8))
+
+
+def _parse_beijing_datetime(raw: Optional[str]) -> Optional[datetime]:
+    """将 ISO 时间字符串转为北京时间（naive datetime），解析失败返回 None"""
+    if not raw:
+        return None
+    try:
+        return (
+            datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            .astimezone(_BEIJING)
+            .replace(tzinfo=None)
+        )
+    except (ValueError, TypeError):
+        return None
+
 
 class Personnel(BaseModel):
     """人员领域模型，每条人员记录对应 Redmine 项目中的一个 Issue"""
@@ -48,34 +64,11 @@ class Personnel(BaseModel):
             value = cf.get("value", "")
             cf_map[name] = value
 
-        # 解析日期字段
-        start_dt = None
-        raw_start = cf_map.get("start_datetime")
-        _BEIJING = timezone(timedelta(hours=8))
-        if raw_start:
-            try:
-                start_dt = datetime.fromisoformat(raw_start.replace("Z","+00:00")).astimezone(_BEIJING).replace(tzinfo=None)
-            except (ValueError, TypeError):
-                pass
-        created = None
-        raw_created = issue.get("created_on")
-        if raw_created:
-            try:
-                created = datetime.fromisoformat(
-                    raw_created.replace("Z", "+00:00")
-                ).astimezone(_BEIJING).replace(tzinfo=None)
-            except (ValueError, TypeError):
-                pass
-
-        updated = None
-        raw_updated = issue.get("updated_on")
-        if raw_updated:
-            try:
-                updated = datetime.fromisoformat(
-                    raw_updated.replace("Z", "+00:00")
-                ).astimezone(_BEIJING).replace(tzinfo=None)
-            except (ValueError, TypeError):
-                pass
+        start_dt = _parse_beijing_datetime(cf_map.get("start_datetime"))
+        if start_dt:
+            start_dt = start_dt.date()
+        created = _parse_beijing_datetime(issue.get("created_on"))
+        updated = _parse_beijing_datetime(issue.get("updated_on"))
 
         return cls(
             id=issue["id"],
@@ -92,23 +85,47 @@ class Personnel(BaseModel):
             update_datetime=updated,
         )
 
+    def to_response(self) -> "PersonnelResponse":
+        """Personnel → PersonnelResponse"""
+        from ..schemas.personnel import PersonnelResponse
+
+        return PersonnelResponse(
+            id=self.id,
+            employee_id=self.employee_id,
+            name=self.name,
+            gender=self.gender,
+            age=int(self.age) if self.age and self.age.isdigit() else 0,
+            phone=self.phone,
+            email=self.email,
+            department=self.department,
+            position=self.position,
+            hire_date=self.start_datetime,
+            is_deleted=False,
+            created_at=self.create_datetime,
+            updated_at=self.update_datetime,
+        )
+
+    def to_payload_dict(self) -> dict:
+        """将 Personnel 字段转为用于 Redmine API 的扁平 dict"""
+        return {
+            "employee_id": self.employee_id,
+            "name": self.name,
+            "gender": self.gender,
+            "age": self.age,
+            "phone": self.phone,
+            "email": self.email,
+            "department": self.department,
+            "position": self.position,
+            "start_datetime": str(self.start_datetime) if self.start_datetime else "",
+            "create_datetime": str(self.create_datetime) if self.create_datetime else "",
+            "update_datetime": str(self.update_datetime) if self.update_datetime else "",
+        }
+
     def to_redmine_payload(self) -> dict:
         """将 Personnel 转为 Redmine Issue 创建/更新所需的扁平 dict。"""
         from .custom_field import PersonnelFieldMapping
 
         return PersonnelFieldMapping.build_payload(
-            {
-                "employee_id": self.employee_id,
-                "name": self.name,
-                "gender": self.gender,
-                "age": self.age,
-                "phone": self.phone,
-                "email": self.email,
-                "department": self.department,
-                "position": self.position,
-                "start_datetime": str(self.start_datetime) if self.start_datetime else "",
-                "create_datetime": str(self.create_datetime) if self.create_datetime else "",
-                "update_datetime": str(self.update_datetime) if self.update_datetime else "",
-            },
+            self.to_payload_dict(),
             project_id=settings.REDMINE_PROJECT_ID,
         )

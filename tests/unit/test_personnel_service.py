@@ -78,9 +78,9 @@ class TestBuildCreatePayload:
 
 
 class TestPersonnelToResponse:
-    """测试 _personnel_to_response"""
+    """测试 Personnel.to_response()"""
 
-    def test_converts_personnel_to_response(self, svc: PersonnelService) -> None:
+    def test_converts_personnel_to_response(self) -> None:
         p = Personnel(
             id=101, employee_id="EMP001", name="张三", gender="男",
             age="25", phone="13800138000", email="zhangsan@example.com",
@@ -88,7 +88,7 @@ class TestPersonnelToResponse:
             start_datetime=date(2024, 1, 1),
             create_datetime=None, update_datetime=None,
         )
-        resp = svc._personnel_to_response(p)
+        resp = p.to_response()
         assert resp.id == 101
         assert resp.employee_id == "EMP001"
         assert resp.name == "张三"
@@ -96,14 +96,14 @@ class TestPersonnelToResponse:
         assert resp.age == 25
         assert resp.department == "技术部"
 
-    def test_non_digit_age_returns_zero(self, svc: PersonnelService) -> None:
+    def test_non_digit_age_returns_zero(self) -> None:
         p = Personnel(
             id=102, employee_id="E2", name="李四", gender="女",
             age="abc", phone="139", email="e@t.com",
             department="部", position="职",
             start_datetime=None, create_datetime=None, update_datetime=None,
         )
-        resp = svc._personnel_to_response(p)
+        resp = p.to_response()
         assert resp.age == 0
 
 

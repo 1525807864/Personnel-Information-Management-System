@@ -11,7 +11,7 @@ from datetime import date, datetime
 
 import pytest
 
-from backend.app.models.personnel import Personnel
+from backend.app.models.personnel import Personnel, _parse_beijing_datetime
 
 
 class TestPersonnelFromRedmineIssue:
@@ -134,3 +134,98 @@ class TestPersonnelToRedminePayload:
         assert payload["cf_8"] == ""
         assert payload["cf_9"] == ""
         assert payload["cf_10"] == ""
+
+
+class TestParseBeijingDatetime:
+    """测试 _parse_beijing_datetime() 工具函数"""
+
+    def test_utc_z_suffix(self):
+        """带 Z 后缀的 UTC 时间应转为北京时间 (+8h)"""
+        result = _parse_beijing_datetime("2024-01-15T08:30:00Z")
+        assert result is not None
+        assert result.hour == 16  # UTC 8:30 → 北京时间 16:30
+        assert result.minute == 30
+
+    def test_date_only_string(self):
+        """只有日期的字符串也能解析（无时区信息，保持原值）"""
+        result = _parse_beijing_datetime("2024-01-01")
+        assert result is not None
+        assert result.year == 2024
+        assert result.month == 1
+        assert result.day == 1
+
+    def test_none_input(self):
+        """None 输入返回 None"""
+        assert _parse_beijing_datetime(None) is None
+
+    def test_empty_string(self):
+        """空字符串返回 None"""
+        assert _parse_beijing_datetime("") is None
+
+    def test_invalid_string(self):
+        """无法解析的字符串返回 None"""
+        assert _parse_beijing_datetime("not-a-date") is None
+
+
+class TestPersonnelToResponse:
+    """测试 Personnel.to_response()"""
+
+    def test_full_conversion(self):
+        p = Personnel(
+            id=42, employee_id="EMP001", name="张三", gender="男",
+            age="25", phone="13800138000", email="zhangsan@test.com",
+            department="技术部", position="工程师",
+            start_datetime=date(2024, 1, 1),
+            create_datetime=datetime(2024, 1, 1, 12, 0, 0),
+            update_datetime=datetime(2024, 6, 1, 12, 0, 0),
+        )
+        resp = p.to_response()
+        assert resp.id == 42
+        assert resp.employee_id == "EMP001"
+        assert resp.name == "张三"
+        assert resp.gender == "男"
+        assert resp.age == 25
+        assert resp.hire_date == date(2024, 1, 1)
+        assert resp.is_deleted is False
+        assert resp.created_at == datetime(2024, 1, 1, 12, 0, 0)
+
+    def test_non_digit_age(self):
+        p = Personnel(
+            id=1, employee_id="E1", name="测试", gender="男",
+            age="abc", phone="138", email="e@t.com",
+            department="部", position="职",
+        )
+        resp = p.to_response()
+        assert resp.age == 0
+
+
+class TestPersonnelToPayloadDict:
+    """测试 Personnel.to_payload_dict()"""
+
+    def test_full_dict(self):
+        p = Personnel(
+            id=42, employee_id="EMP001", name="张三", gender="男",
+            age="25", phone="13800138000", email="zhangsan@test.com",
+            department="技术部", position="工程师",
+            start_datetime=date(2024, 1, 1),
+            create_datetime=datetime(2024, 1, 1, 12, 0, 0),
+            update_datetime=datetime(2024, 6, 1, 12, 0, 0),
+        )
+        d = p.to_payload_dict()
+        assert d["employee_id"] == "EMP001"
+        assert d["name"] == "张三"
+        assert d["start_datetime"] == "2024-01-01"
+        assert d["create_datetime"] == "2024-01-01 12:00:00"
+        assert d["update_datetime"] == "2024-06-01 12:00:00"
+
+    def test_none_dates_become_empty_string(self):
+        p = Personnel(
+            id=1, employee_id="E1", name="测试", gender="男",
+            age="30", phone="13800138000", email="test@test.com",
+            department="技术部", position="工程师",
+            start_datetime=None,
+        )
+        d = p.to_payload_dict()
+        assert d["start_datetime"] == ""
+        assert d["create_datetime"] == ""
+        assert d["update_datetime"] == ""

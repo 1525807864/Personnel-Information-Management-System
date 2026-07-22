@@ -54,7 +54,7 @@ class PersonnelService:
             issue = response.get("issue", response)
             personnel = Personnel.from_redmine_issue(issue)
             logger.info("人员创建成功 | id=%s | employee_id=%s", personnel.id, personnel.employee_id)
-            return self._personnel_to_response(personnel)
+            return personnel.to_response()
         finally:
             await redis_client.delete(lock_key)
 
@@ -141,7 +141,7 @@ class PersonnelService:
         end_idx = start_idx + size
         paged = personnel_list[start_idx:end_idx]
 
-        items = [self._personnel_to_response(p) for p in paged]
+        items = [p.to_response() for p in paged]
         return {"total": filtered_total, "page": page, "size": size, "items": items}
 
     async def search_personnel(self, search_data: PersonnelSearchRequest) -> Dict[str, Any]:
@@ -165,7 +165,7 @@ class PersonnelService:
             raise ValueError(f"人员不存在 (ID: {personnel_id})") from e
         issue = response.get("issue", response)
         personnel = Personnel.from_redmine_issue(issue)
-        return self._personnel_to_response(personnel)
+        return personnel.to_response()
 
     async def update_personnel(self, personnel_id: int, data: PersonnelUpdate) -> PersonnelResponse:
         """修改人员信息"""
@@ -294,20 +294,3 @@ class PersonnelService:
             include_meta=True,
         )
 
-    def _personnel_to_response(self, personnel: Personnel) -> PersonnelResponse:
-        """Personnel → PersonnelResponse"""
-        return PersonnelResponse(
-            id=personnel.id,
-            employee_id=personnel.employee_id,
-            name=personnel.name,
-            gender=personnel.gender,
-            age=int(personnel.age) if personnel.age and personnel.age.isdigit() else 0,
-            phone=personnel.phone,
-            email=personnel.email,
-            department=personnel.department,
-            position=personnel.position,
-            hire_date=personnel.start_datetime,
-            is_deleted=False,
-            created_at=personnel.create_datetime,
-            updated_at=personnel.update_datetime,
-        )
